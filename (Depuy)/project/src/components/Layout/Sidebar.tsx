@@ -1,15 +1,12 @@
 import React from 'react';
 import { 
   LayoutDashboard, 
-  Settings as SettingsIcon, 
   Wrench, 
   Truck, 
   UserCheck, 
   TrendingUp, 
   BarChart3,
-  Database,
-  Target,
-  PieChart
+  Brain
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -23,9 +20,8 @@ const menuItems = [
   { id: 'operations', label: 'Operations', icon: Truck },
   { id: 'rep-portal', label: 'Rep Portal', icon: UserCheck },
   { id: 'sales', label: 'Sales Management', icon: TrendingUp },
+  { id: 'ai-insights', label: 'AI Insights', icon: Brain },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-  { id: 'settings', label: 'Settings', icon: SettingsIcon },
-  { id: 'test', label: 'Supabase Test', icon: Database },
 ];
 
 export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {

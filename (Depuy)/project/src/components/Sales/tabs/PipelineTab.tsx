@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, DollarSign, Calendar, User, Building2, TrendingUp, RefreshCw, AlertCircle, Edit, Eye, X, Save, Phone, Mail, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 
 interface Opportunity {
@@ -8,13 +7,11 @@ interface Opportunity {
   description?: string;
   hospital_id: number;
   surgeon_id?: number;
-  sales_rep_id?: number;
   estimated_value?: number;
   probability_percentage?: number;
   expected_close_date?: string;
   stage?: string;
   status: string;
-  last_contact_date?: string;
   next_action?: string;
   notes?: string;
   created_at: string;
@@ -46,9 +43,8 @@ export default function PipelineTab() {
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingOpportunity, setEditingOpportunity] = useState<Opportunity | null>(null);
-  const [expandedCard, setExpandedCard] = useState<number | null>(null);
-  const [activeStage, setActiveStage] = useState('all');
-  
+  const [activeStage, setActiveStage] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState<FormData>({
     title: '',
     description: '',
@@ -63,14 +59,14 @@ export default function PipelineTab() {
     notes: ''
   });
 
-  const pipelineStages = [
-    { id: 'all', title: 'All Opportunities', color: 'bg-gray-600' },
-    { id: 'lead', title: 'Lead', color: 'bg-blue-600' },
-    { id: 'qualified', title: 'Qualified', color: 'bg-indigo-600' },
-    { id: 'proposal', title: 'Proposal', color: 'bg-purple-600' },
-    { id: 'negotiation', title: 'Negotiation', color: 'bg-orange-600' },
-    { id: 'closed_won', title: 'Closed Won', color: 'bg-green-600' },
-    { id: 'closed_lost', title: 'Closed Lost', color: 'bg-red-600' }
+  const stages = [
+    { key: 'all', label: 'All Opportunities', color: 'bg-gray-100' },
+    { key: 'lead', label: 'Lead', color: 'bg-blue-100' },
+    { key: 'qualified', label: 'Qualified', color: 'bg-yellow-100' },
+    { key: 'proposal', label: 'Proposal', color: 'bg-orange-100' },
+    { key: 'negotiation', label: 'Negotiation', color: 'bg-purple-100' },
+    { key: 'closed_won', label: 'Closed Won', color: 'bg-green-100' },
+    { key: 'closed_lost', label: 'Closed Lost', color: 'bg-red-100' }
   ];
 
   useEffect(() => {
@@ -79,8 +75,9 @@ export default function PipelineTab() {
 
   const loadData = async () => {
     setLoading(true);
+    setError(null);
     try {
-      // Load opportunities with hospital and surgeon info
+      // Load opportunities with basic related data
       const { data: oppsData, error: oppsError } = await supabase
         .from('opportunities')
         .select(`
@@ -92,20 +89,18 @@ export default function PipelineTab() {
 
       if (oppsError) throw oppsError;
 
-      // Load hospitals for form dropdown
+      // Load hospitals
       const { data: hospitalsData, error: hospitalsError } = await supabase
         .from('hospitals')
         .select('id, name')
-        .eq('is_active', true)
         .order('name');
 
       if (hospitalsError) throw hospitalsError;
 
-      // Load surgeons for form dropdown
+      // Load surgeons
       const { data: surgeonsData, error: surgeonsError } = await supabase
         .from('surgeons')
         .select('id, first_name, last_name')
-        .eq('is_active', true)
         .order('last_name');
 
       if (surgeonsError) throw surgeonsError;
@@ -123,8 +118,21 @@ export default function PipelineTab() {
   };
 
   const getFilteredOpportunities = () => {
-    if (activeStage === 'all') return opportunities;
-    return opportunities.filter(opp => opp.stage === activeStage);
+    let filtered = opportunities;
+    
+    if (activeStage !== 'all') {
+      filtered = filtered.filter(opp => opp.stage === activeStage);
+    }
+    
+    if (searchTerm) {
+      filtered = filtered.filter(opp => 
+        opp.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        opp.hospital?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (opp.surgeon && `${opp.surgeon.first_name} ${opp.surgeon.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+    }
+    
+    return filtered;
   };
 
   const handleSaveOpportunity = async (e: React.FormEvent) => {
@@ -137,17 +145,17 @@ export default function PipelineTab() {
 
     try {
       const opportunityData = {
-        title: formData.title,
-        description: formData.description || null,
-        hospital_id: parseInt(formData.hospital_id) || null,
-        surgeon_id: formData.surgeon_id ? parseInt(formData.surgeon_id) : null,
-        estimated_value: formData.estimated_value || null,
-        probability_percentage: formData.probability_percentage || null,
+        title: formData.title.trim(),
+        description: formData.description.trim() || null,
+        hospital_id: formData.hospital_id && formData.hospital_id !== '' && formData.hospital_id !== 'null' ? parseInt(formData.hospital_id) : null,
+        surgeon_id: formData.surgeon_id && formData.surgeon_id !== '' && formData.surgeon_id !== 'null' ? parseInt(formData.surgeon_id) : null,
+        estimated_value: formData.estimated_value > 0 ? formData.estimated_value : null,
+        probability_percentage: formData.probability_percentage > 0 ? formData.probability_percentage : null,
         expected_close_date: formData.expected_close_date || null,
         stage: formData.stage || 'lead',
         status: formData.status || 'active',
-        next_action: formData.next_action || null,
-        notes: formData.notes || null
+        next_action: formData.next_action.trim() || null,
+        notes: formData.notes.trim() || null
       };
 
       if (editingOpportunity) {
@@ -188,7 +196,7 @@ export default function PipelineTab() {
       probability_percentage: opportunity.probability_percentage || 0,
       expected_close_date: opportunity.expected_close_date || '',
       stage: opportunity.stage || 'lead',
-      status: opportunity.status,
+      status: opportunity.status || 'active',
       next_action: opportunity.next_action || '',
       notes: opportunity.notes || ''
     });
@@ -223,7 +231,6 @@ export default function PipelineTab() {
         .eq('id', id);
         
       if (error) throw error;
-      
       await loadData();
     } catch (err) {
       console.error('Error deleting opportunity:', err);
@@ -234,456 +241,402 @@ export default function PipelineTab() {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0
+      currency: 'USD'
     }).format(amount);
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
+    return new Date(dateString).toLocaleDateString();
   };
 
   const getMetrics = () => {
     const filtered = getFilteredOpportunities();
-    const totalPipeline = filtered.reduce((sum, opp) => sum + (opp.estimated_value || 0), 0);
-    const weightedPipeline = filtered.reduce((sum, opp) => sum + ((opp.estimated_value || 0) * (opp.probability_percentage || 0) / 100), 0);
-    const avgDealSize = filtered.length > 0 ? totalPipeline / filtered.length : 0;
-    const closedWon = filtered.filter(opp => opp.stage === 'closed_won');
-    const totalClosed = filtered.filter(opp => opp.stage === 'closed_won' || opp.stage === 'closed_lost');
-    const winRate = totalClosed.length > 0 ? (closedWon.length / totalClosed.length) * 100 : 0;
+    const totalValue = filtered.reduce((sum, opp) => sum + (opp.estimated_value || 0), 0);
+    const avgValue = filtered.length > 0 ? totalValue / filtered.length : 0;
+    const weightedValue = filtered.reduce((sum, opp) => 
+      sum + ((opp.estimated_value || 0) * (opp.probability_percentage || 0) / 100), 0
+    );
 
-    return { totalPipeline, weightedPipeline, avgDealSize, winRate, count: filtered.length };
+    return {
+      count: filtered.length,
+      totalValue,
+      avgValue,
+      weightedValue
+    };
   };
-
-  const metrics = getMetrics();
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-md p-8">
-        <div className="flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-          <span className="ml-2 text-gray-600">Loading pipeline...</span>
-        </div>
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <span className="ml-2">Loading pipeline...</span>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-white rounded-lg shadow-md p-8">
-        <div className="text-center">
-          <AlertCircle className="mx-auto h-12 w-12 text-red-500 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Pipeline Unavailable</h3>
-          <p className="text-gray-600 mb-4">{error}</p>
-          <button
-            onClick={loadData}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 mx-auto"
-          >
-            <RefreshCw className="w-4 h-4" />
-            <span>Retry</span>
-          </button>
+      <div className="flex flex-col items-center justify-center h-64">
+        <div className="text-red-500 mb-4">
+          <svg className="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+          </svg>
+          <h3 className="text-lg font-semibold">Pipeline Unavailable</h3>
         </div>
+        <p className="text-gray-600 mb-4">{error}</p>
+        <button
+          onClick={loadData}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center"
+        >
+          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Retry
+        </button>
       </div>
     );
   }
 
+  const metrics = getMetrics();
+
   return (
     <div className="space-y-6">
-      {/* Header & Metrics */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Sales Pipeline</h2>
-            <p className="text-gray-600">Manage your sales opportunities and track progress</p>
-          </div>
-          <button
-            onClick={() => setShowForm(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2"
-          >
-            <Plus className="w-4 h-4" />
-            <span>New Opportunity</span>
-          </button>
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Sales Pipeline</h2>
+          <p className="text-gray-600">Manage opportunities and track progress</p>
         </div>
+        <button
+          onClick={() => setShowForm(true)}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center"
+        >
+          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Add Opportunity
+        </button>
+      </div>
 
-        {/* Metrics */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <div className="text-2xl font-bold text-blue-600">{metrics.count}</div>
-            <div className="text-sm text-blue-800">Opportunities</div>
-          </div>
-          <div className="bg-green-50 p-4 rounded-lg">
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(metrics.totalPipeline)}</div>
-            <div className="text-sm text-green-800">Pipeline Value</div>
-          </div>
-          <div className="bg-purple-50 p-4 rounded-lg">
-            <div className="text-2xl font-bold text-purple-600">{formatCurrency(metrics.weightedPipeline)}</div>
-            <div className="text-sm text-purple-800">Weighted Value</div>
-          </div>
-          <div className="bg-orange-50 p-4 rounded-lg">
-            <div className="text-2xl font-bold text-orange-600">{formatCurrency(metrics.avgDealSize)}</div>
-            <div className="text-sm text-orange-800">Avg Deal Size</div>
-          </div>
-          <div className="bg-yellow-50 p-4 rounded-lg">
-            <div className="text-2xl font-bold text-yellow-600">{metrics.winRate.toFixed(1)}%</div>
-            <div className="text-sm text-yellow-800">Win Rate</div>
-          </div>
+      {/* Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white p-4 rounded-lg border">
+          <div className="text-2xl font-bold text-blue-600">{metrics.count}</div>
+          <div className="text-sm text-gray-600">Total Opportunities</div>
         </div>
+        <div className="bg-white p-4 rounded-lg border">
+          <div className="text-2xl font-bold text-green-600">{formatCurrency(metrics.totalValue)}</div>
+          <div className="text-sm text-gray-600">Total Value</div>
+        </div>
+        <div className="bg-white p-4 rounded-lg border">
+          <div className="text-2xl font-bold text-purple-600">{formatCurrency(metrics.weightedValue)}</div>
+          <div className="text-sm text-gray-600">Weighted Value</div>
+        </div>
+        <div className="bg-white p-4 rounded-lg border">
+          <div className="text-2xl font-bold text-orange-600">{formatCurrency(metrics.avgValue)}</div>
+          <div className="text-sm text-gray-600">Average Deal Size</div>
+        </div>
+      </div>
 
-        {/* Stage Filter Tabs */}
-        <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
-          {pipelineStages.map((stage) => {
-            const stageCount = stage.id === 'all' 
-              ? opportunities.length 
-              : opportunities.filter(opp => opp.stage === stage.id).length;
-            
-            return (
-              <button
-                key={stage.id}
-                onClick={() => setActiveStage(stage.id)}
-                className={`flex-1 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  activeStage === stage.id
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                <div className="flex items-center justify-center space-x-2">
-                  <span>{stage.title}</span>
-                  <span className="text-xs bg-gray-200 px-2 py-1 rounded-full">
-                    {stageCount}
-                  </span>
-                </div>
-              </button>
-            );
-          })}
+      {/* Filters */}
+      <div className="flex flex-wrap gap-4 items-center">
+        <div className="flex-1 min-w-64">
+          <input
+            type="text"
+            placeholder="Search opportunities..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {stages.map(stage => (
+            <button
+              key={stage.key}
+              onClick={() => setActiveStage(stage.key)}
+              className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                activeStage === stage.key
+                  ? 'bg-blue-600 text-white'
+                  : `${stage.color} text-gray-700 hover:bg-blue-100`
+              }`}
+            >
+              {stage.label}
+            </button>
+          ))}
         </div>
       </div>
 
       {/* Opportunities List */}
-      <div className="bg-white rounded-lg shadow-md">
-        <div className="p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">
-            {activeStage === 'all' ? 'All Opportunities' : pipelineStages.find(s => s.id === activeStage)?.title}
-          </h3>
-          
-          {getFilteredOpportunities().length === 0 ? (
-            <div className="text-center py-8">
-              <Building2 className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No opportunities found</h3>
-              <p className="text-gray-500 mb-4">Get started by creating your first opportunity</p>
-              <button
-                onClick={() => setShowForm(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
-              >
-                Create Opportunity
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {getFilteredOpportunities().map((opportunity) => (
-                <div key={opportunity.id} className="border border-gray-200 rounded-lg hover:shadow-md transition-shadow">
-                  <div 
-                    className="p-4 cursor-pointer"
-                    onClick={() => setExpandedCard(expandedCard === opportunity.id ? null : opportunity.id)}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-3 mb-2">
-                          <h4 className="text-lg font-medium text-gray-900">{opportunity.title}</h4>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            opportunity.stage === 'closed_won' ? 'bg-green-100 text-green-800' :
-                            opportunity.stage === 'closed_lost' ? 'bg-red-100 text-red-800' :
-                            opportunity.stage === 'negotiation' ? 'bg-orange-100 text-orange-800' :
-                            opportunity.stage === 'proposal' ? 'bg-purple-100 text-purple-800' :
-                            opportunity.stage === 'qualified' ? 'bg-indigo-100 text-indigo-800' :
-                            'bg-blue-100 text-blue-800'
-                          }`}>
-                            {pipelineStages.find(s => s.id === opportunity.stage)?.title || 'Lead'}
-                          </span>
-                        </div>
-                        
-                        <div className="flex items-center space-x-4 text-sm text-gray-600">
-                          <span className="flex items-center">
-                            <Building2 className="w-4 h-4 mr-1" />
-                            {opportunity.hospital?.name || 'No hospital'}
-                          </span>
-                          {opportunity.estimated_value && (
-                            <span className="flex items-center">
-                              <DollarSign className="w-4 h-4 mr-1" />
-                              {formatCurrency(opportunity.estimated_value)}
-                            </span>
-                          )}
-                          {opportunity.probability_percentage && (
-                            <span className="flex items-center">
-                              <TrendingUp className="w-4 h-4 mr-1" />
-                              {opportunity.probability_percentage}%
-                            </span>
-                          )}
-                          {opportunity.expected_close_date && (
-                            <span className="flex items-center">
-                              <Calendar className="w-4 h-4 mr-1" />
-                              {formatDate(opportunity.expected_close_date)}
-                            </span>
-                          )}
-                        </div>
+      <div className="bg-white rounded-lg border">
+        {getFilteredOpportunities().length === 0 ? (
+          <div className="p-8 text-center">
+            <svg className="w-12 h-12 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No opportunities found</h3>
+            <p className="text-gray-500 mb-4">Get started by creating your first opportunity</p>
+            <button
+              onClick={() => setShowForm(true)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Add Opportunity
+            </button>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-200">
+            {getFilteredOpportunities().map(opportunity => (
+              <div key={opportunity.id} className="p-4 hover:bg-gray-50">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h3 className="text-lg font-semibold text-gray-900">{opportunity.title}</h3>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        stages.find(s => s.key === opportunity.stage)?.color || 'bg-gray-100'
+                      } text-gray-700`}>
+                        {stages.find(s => s.key === opportunity.stage)?.label || opportunity.stage}
+                      </span>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
+                      <div>
+                        <span className="font-medium">Hospital:</span> {opportunity.hospital?.name || 'Not assigned'}
                       </div>
-                      
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEditOpportunity(opportunity);
-                          }}
-                          className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        {expandedCard === opportunity.id ? 
-                          <ChevronUp className="w-4 h-4 text-gray-400" /> : 
-                          <ChevronDown className="w-4 h-4 text-gray-400" />
+                      <div>
+                        <span className="font-medium">Surgeon:</span> {
+                          opportunity.surgeon 
+                            ? `${opportunity.surgeon.first_name} ${opportunity.surgeon.last_name}`
+                            : 'Not assigned'
+                        }
+                      </div>
+                      <div>
+                        <span className="font-medium">Value:</span> {
+                          opportunity.estimated_value ? formatCurrency(opportunity.estimated_value) : 'Not set'
                         }
                       </div>
                     </div>
+                    
+                    {opportunity.description && (
+                      <p className="mt-2 text-sm text-gray-600">{opportunity.description}</p>
+                    )}
                   </div>
                   
-                  {expandedCard === opportunity.id && (
-                    <div className="border-t border-gray-200 p-4 bg-gray-50">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <h5 className="font-medium text-gray-900 mb-2">Details</h5>
-                          <div className="space-y-1 text-sm">
-                            {opportunity.description && (
-                              <p className="text-gray-600">{opportunity.description}</p>
-                            )}
-                            {opportunity.surgeon && (
-                              <p><span className="font-medium">Surgeon:</span> Dr. {opportunity.surgeon.first_name} {opportunity.surgeon.last_name}</p>
-                            )}
-                            <p><span className="font-medium">Status:</span> {opportunity.status}</p>
-                            <p><span className="font-medium">Created:</span> {formatDate(opportunity.created_at)}</p>
-                          </div>
-                        </div>
-                        
-                        <div>
-                          <h5 className="font-medium text-gray-900 mb-2">Next Steps</h5>
-                          <div className="space-y-1 text-sm">
-                            {opportunity.next_action && (
-                              <p className="text-gray-600">{opportunity.next_action}</p>
-                            )}
-                            {opportunity.notes && (
-                              <p className="text-gray-600 mt-2"><span className="font-medium">Notes:</span> {opportunity.notes}</p>
-                            )}
-                          </div>
-                          
-                          <div className="flex space-x-2 mt-4">
-                            <button
-                              onClick={() => handleEditOpportunity(opportunity)}
-                              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => handleDeleteOpportunity(opportunity.id)}
-                              className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2 ml-4">
+                    <button
+                      onClick={() => handleEditOpportunity(opportunity)}
+                      className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => handleDeleteOpportunity(opportunity.id)}
+                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Create/Edit Form Modal */}
+      {/* Form Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h3 className="text-lg font-medium text-gray-900">
-                {editingOpportunity ? 'Edit Opportunity' : 'Create New Opportunity'}
-              </h3>
-              <button
-                onClick={handleCloseForm}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-            
-            <form onSubmit={handleSaveOpportunity} className="p-6 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-semibold">
+                  {editingOpportunity ? 'Edit Opportunity' : 'Add New Opportunity'}
+                </h3>
+                <button
+                  onClick={handleCloseForm}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveOpportunity} className="space-y-4">
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Title *
                   </label>
                   <input
                     type="text"
-                    required
                     value={formData.title}
-                    onChange={(e) => setFormData({...formData, title: e.target.value})}
+                    onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Enter opportunity title"
                   />
                 </div>
-                
-                <div className="md:col-span-2">
+
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Description
+                    Description <span className="text-gray-400">(optional)</span>
                   </label>
                   <textarea
                     value={formData.description}
-                    onChange={(e) => setFormData({...formData, description: e.target.value})}
+                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Describe the opportunity"
+                    placeholder="Describe the opportunity (optional)"
                   />
                 </div>
-                
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Hospital <span className="text-gray-400">(optional)</span>
+                    </label>
+                    <select
+                      value={formData.hospital_id}
+                      onChange={(e) => setFormData(prev => ({ ...prev, hospital_id: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Select Hospital</option>
+                      <option value="null">No Hospital</option>
+                      {hospitals.map(hospital => (
+                        <option key={hospital.id} value={hospital.id}>
+                          {hospital.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Surgeon <span className="text-gray-400">(optional)</span>
+                    </label>
+                    <select
+                      value={formData.surgeon_id}
+                      onChange={(e) => setFormData(prev => ({ ...prev, surgeon_id: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Select Surgeon</option>
+                      <option value="null">No Surgeon</option>
+                      {surgeons.map(surgeon => (
+                        <option key={surgeon.id} value={surgeon.id}>
+                          {surgeon.first_name} {surgeon.last_name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Estimated Value ($) <span className="text-gray-400">(optional)</span>
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.estimated_value}
+                      onChange={(e) => setFormData(prev => ({ ...prev, estimated_value: parseFloat(e.target.value) || 0 }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      min="0"
+                      step="0.01"
+                      placeholder="0.00"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Probability (%) <span className="text-gray-400">(optional)</span>
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.probability_percentage}
+                      onChange={(e) => setFormData(prev => ({ ...prev, probability_percentage: parseInt(e.target.value) || 0 }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      min="0"
+                      max="100"
+                      placeholder="0-100"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Stage
+                    </label>
+                    <select
+                      value={formData.stage}
+                      onChange={(e) => setFormData(prev => ({ ...prev, stage: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      {stages.filter(s => s.key !== 'all').map(stage => (
+                        <option key={stage.key} value={stage.key}>
+                          {stage.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Expected Close Date <span className="text-gray-400">(optional)</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.expected_close_date}
+                      onChange={(e) => setFormData(prev => ({ ...prev, expected_close_date: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Hospital
-                  </label>
-                  <select
-                    value={formData.hospital_id}
-                    onChange={(e) => setFormData({...formData, hospital_id: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">Select hospital</option>
-                    {hospitals.map(hospital => (
-                      <option key={hospital.id} value={hospital.id}>
-                        {hospital.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Surgeon
-                  </label>
-                  <select
-                    value={formData.surgeon_id}
-                    onChange={(e) => setFormData({...formData, surgeon_id: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">Select surgeon</option>
-                    {surgeons.map(surgeon => (
-                      <option key={surgeon.id} value={surgeon.id}>
-                        Dr. {surgeon.first_name} {surgeon.last_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Estimated Value ($)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.estimated_value}
-                    onChange={(e) => setFormData({...formData, estimated_value: parseFloat(e.target.value) || 0})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Probability (%)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={formData.probability_percentage}
-                    onChange={(e) => setFormData({...formData, probability_percentage: parseInt(e.target.value) || 0})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Stage
-                  </label>
-                  <select
-                    value={formData.stage}
-                    onChange={(e) => setFormData({...formData, stage: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="lead">Lead</option>
-                    <option value="qualified">Qualified</option>
-                    <option value="proposal">Proposal</option>
-                    <option value="negotiation">Negotiation</option>
-                    <option value="closed_won">Closed Won</option>
-                    <option value="closed_lost">Closed Lost</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Expected Close Date
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.expected_close_date}
-                    onChange={(e) => setFormData({...formData, expected_close_date: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Next Action
+                    Next Action <span className="text-gray-400">(optional)</span>
                   </label>
                   <input
                     type="text"
                     value={formData.next_action}
-                    onChange={(e) => setFormData({...formData, next_action: e.target.value})}
+                    onChange={(e) => setFormData(prev => ({ ...prev, next_action: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="What's the next step?"
+                    placeholder="e.g., Schedule follow-up call"
                   />
                 </div>
-                
-                <div className="md:col-span-2">
+
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Notes
+                    Notes <span className="text-gray-400">(optional)</span>
                   </label>
                   <textarea
                     value={formData.notes}
-                    onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                    onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Additional notes"
+                    placeholder="Additional notes about this opportunity"
                   />
                 </div>
-              </div>
-              
-              <div className="flex items-center justify-end space-x-4 pt-4 border-t border-gray-200">
-                <button
-                  type="button"
-                  onClick={handleCloseForm}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center space-x-2"
-                >
-                  <Save className="w-4 h-4" />
-                  <span>Save Opportunity</span>
-                </button>
-              </div>
-            </form>
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={handleCloseForm}
+                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    {editingOpportunity ? 'Update' : 'Create'} Opportunity
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}

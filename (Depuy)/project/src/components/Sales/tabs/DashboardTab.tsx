@@ -31,7 +31,7 @@ interface DashboardData {
     winRate: number;
   }>;
   surgeonPerformance: Array<{
-    surgeon: string;
+  surgeon: string;
     opportunities: number;
     value: number;
     avgDealSize: number;
@@ -87,7 +87,7 @@ export default function DashboardTab() {
   const loadDashboardData = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const startDate = getDateRange();
       
@@ -320,7 +320,7 @@ export default function DashboardTab() {
             >
               <RefreshCw className="w-4 h-4" />
               <span>Retry</span>
-            </button>
+          </button>
           </div>
         </div>
       </div>
@@ -332,12 +332,12 @@ export default function DashboardTab() {
       {/* Header */}
       <div className="bg-white rounded-lg shadow-md p-6">
         <div className="flex items-center justify-between mb-4">
-          <div>
+        <div>
             <h2 className="text-2xl font-bold text-gray-900">Sales Dashboard</h2>
             <p className="text-gray-600">Comprehensive sales performance and analytics</p>
-          </div>
+        </div>
           <div className="flex items-center space-x-4">
-            <select
+          <select
               value={timeRange}
               onChange={(e) => setTimeRange(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -346,7 +346,7 @@ export default function DashboardTab() {
               <option value="3months">Last 3 Months</option>
               <option value="6months">Last 6 Months</option>
               <option value="1year">Last Year</option>
-            </select>
+          </select>
             <button
               onClick={exportData}
               className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2"
@@ -354,58 +354,58 @@ export default function DashboardTab() {
               <Download className="w-4 h-4" />
               <span>Export</span>
             </button>
-            <button
-              onClick={loadDashboardData}
+          <button 
+            onClick={loadDashboardData}
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2"
-            >
+          >
               <RefreshCw className="w-4 h-4" />
-              <span>Refresh</span>
-            </button>
+            <span>Refresh</span>
+          </button>
           </div>
         </div>
 
-        {/* Key Metrics */}
+          {/* Key Metrics */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
           <div className="bg-blue-50 p-4 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div>
+              <div className="flex items-center justify-between">
+                <div>
                 <div className="text-2xl font-bold text-blue-600">{data.totalOpportunities}</div>
                 <div className="text-sm text-blue-800">Total Opportunities</div>
               </div>
               <Target className="w-8 h-8 text-blue-500" />
+              </div>
             </div>
-          </div>
-          
+
           <div className="bg-green-50 p-4 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div>
+              <div className="flex items-center justify-between">
+                <div>
                 <div className="text-2xl font-bold text-green-600">{formatCurrency(data.totalValue)}</div>
                 <div className="text-sm text-green-800">Total Value</div>
               </div>
               <DollarSign className="w-8 h-8 text-green-500" />
+              </div>
             </div>
-          </div>
-          
+
           <div className="bg-purple-50 p-4 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div>
+              <div className="flex items-center justify-between">
+                <div>
                 <div className="text-2xl font-bold text-purple-600">{formatCurrency(data.weightedValue)}</div>
                 <div className="text-sm text-purple-800">Weighted Value</div>
               </div>
               <TrendingUp className="w-8 h-8 text-purple-500" />
+              </div>
             </div>
-          </div>
-          
+
           <div className="bg-orange-50 p-4 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div>
+              <div className="flex items-center justify-between">
+                <div>
                 <div className="text-2xl font-bold text-orange-600">{formatCurrency(data.avgDealSize)}</div>
                 <div className="text-sm text-orange-800">Avg Deal Size</div>
               </div>
               <Award className="w-8 h-8 text-orange-500" />
             </div>
           </div>
-          
+
           <div className="bg-yellow-50 p-4 rounded-lg">
             <div className="flex items-center justify-between">
               <div>
@@ -413,19 +413,19 @@ export default function DashboardTab() {
                 <div className="text-sm text-yellow-800">Win Rate</div>
               </div>
               <Zap className="w-8 h-8 text-yellow-500" />
-            </div>
-          </div>
+                      </div>
+                    </div>
           
           <div className="bg-indigo-50 p-4 rounded-lg">
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-2xl font-bold text-indigo-600">{data.conversionRate.toFixed(1)}%</div>
                 <div className="text-sm text-indigo-800">Conversion Rate</div>
-              </div>
+                </div>
               <Activity className="w-8 h-8 text-indigo-500" />
             </div>
-          </div>
-          
+            </div>
+
           <div className="bg-pink-50 p-4 rounded-lg">
             <div className="flex items-center justify-between">
               <div>
@@ -435,7 +435,7 @@ export default function DashboardTab() {
               <Users className="w-8 h-8 text-pink-500" />
             </div>
           </div>
-          
+
           <div className="bg-red-50 p-4 rounded-lg">
             <div className="flex items-center justify-between">
               <div>
@@ -443,10 +443,10 @@ export default function DashboardTab() {
                 <div className="text-sm text-red-800">Closed This Month</div>
               </div>
               <Calendar className="w-8 h-8 text-red-500" />
-            </div>
-          </div>
-        </div>
-      </div>
+                        </div>
+                          </div>
+                        </div>
+                      </div>
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -537,16 +537,16 @@ export default function DashboardTab() {
                 ))}
               </tbody>
             </table>
-          </div>
-        </div>
-      </div>
+                      </div>
+                    </div>
+                </div>
 
       {/* Recent Activity */}
       <div className="bg-white rounded-lg shadow-md p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
         <div className="space-y-3">
           {data.recentActivity.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-gray-500">
               <Activity className="w-12 h-12 mx-auto mb-4 text-gray-400" />
               <p>No recent activity found</p>
             </div>
@@ -562,27 +562,27 @@ export default function DashboardTab() {
                     activity.type === 'qualified' ? 'bg-indigo-500' :
                     'bg-blue-500'
                   }`}></div>
-                  <div>
+                        <div>
                     <div className="font-medium text-gray-900">{activity.title}</div>
                     <div className="text-sm text-gray-600">
                       {activity.hospital && `${activity.hospital} • `}
                       {formatDate(activity.date)}
-                    </div>
-                  </div>
-                </div>
-                <div className="text-right">
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
                   <div className="font-medium text-gray-900">
                     {activity.value ? formatCurrency(activity.value) : '—'}
-                  </div>
+                        </div>
                   <div className="text-sm text-gray-600 capitalize">
                     {activity.type.replace('_', ' ')}
-                  </div>
+                    </div>
                 </div>
-              </div>
+                </div>
             ))
-          )}
-        </div>
-      </div>
+              )}
+            </div>
+          </div>
     </div>
   );
 }

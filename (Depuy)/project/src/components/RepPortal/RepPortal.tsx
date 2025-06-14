@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
 import ScheduleTab from './tabs/ScheduleTab';
-import ReportsTab from './tabs/ReportsTab';
 import BookingTab from './tabs/BookingTab';
 
 const tabs = [
   { id: 'schedule', label: 'My Schedule' },
-  { id: 'reports', label: 'Reports' },
   { id: 'booking', label: 'Surgery Booking' }
 ];
 
@@ -15,7 +13,6 @@ export default function RepPortal() {
   const renderTabContent = () => {
     switch (activeTab) {
       case 'schedule': return <ScheduleTab />;
-      case 'reports': return <ReportsTab />;
       case 'booking': return <BookingTab />;
       default: return <ScheduleTab />;
     }
